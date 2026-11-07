@@ -1,0 +1,23 @@
+# Python virtual environment & caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# User-specific experimental data & generated results
+data/
+results/
+
+# PlatformIO build artifacts
+firmware/.pio/
+.pio/
+
+# Local Word document guide (optional local reference)
+*.docx
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

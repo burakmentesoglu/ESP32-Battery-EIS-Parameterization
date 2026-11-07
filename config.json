@@ -1,0 +1,32 @@
+{
+  "hardware": {
+    "pulse_gpio": 25,
+    "adc_gpio": 34,
+    "r_ref_ohm": 470.0,
+    "adc_attenuation_db": 11,
+    "adc_reference_voltage": 3.3,
+    "voltage_divider_ratio": 1.0
+  },
+  "protocol": {
+    "pre_pulse_ocv_sec": 2.0,
+    "pulse_duration_sec": 1.0,
+    "relaxation_sec": 5.0,
+    "sampling_rate_hz": 1000,
+    "fast_edge_burst_rate_hz": 20000
+  },
+  "serial": {
+    "port": "AUTO",
+    "baud_rate": 921600,
+    "timeout_sec": 15.0
+  },
+  "oscilloscope": {
+    "enabled": false,
+    "visa_resource": "AUTO",
+    "channel": "CHAN1"
+  },
+  "temperature_sweep": {
+    "start_temp_c": 20.0,
+    "end_temp_c": 55.0,
+    "step_temp_c": 5.0
+  }
+}
