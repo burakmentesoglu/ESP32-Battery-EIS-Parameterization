@@ -17,21 +17,24 @@ A minimalist, hardware-efficient electrochemical parameterization and **Electroc
 
 ## 1. Measurement Principle & Architecture
 
-Instead of attaching external surface temperature sensors (which suffer from thermal lag) or using bulky laboratory potentiostats, this platform measures the battery directly across its `(+)` and `(-)` terminals using **Tri-State GPIO Load Modulation**:
+Instead of attaching external surface temperature sensors (which suffer from thermal lag) or using bulky laboratory potentiostats, this platform measures the battery directly across its `(+)` and `(-)` terminals using **Tri-State GPIO Load Modulation (Current Square-Wave Pulse)**.
+
+### Why a Current Square-Wave Load Pulse Instead of External Voltage Injection?
+Injecting an external $+3.3\text{ V}$ square wave directly into a $1.5\text{ V}$ or $3.0\text{ V}$ cell can damage the cell. Instead, the ESP32 uses `GPIO 25` as a high-speed electronic switch (`INPUT` High-Z $\leftrightarrow$ `OUTPUT LOW` $0\text{ V}$) to draw a **sharp, controlled square-wave current pulse** from the battery's own voltage through $R_{\text{ref}}$. By Fourier theory, a sharp step/square current edge excites the battery across dozens of harmonic frequencies simultaneously—allowing time-domain curve fitting and frequency-domain **FFT EIS** from a single 8-second capture:
 
 ```text
-1) Applied Current Load I(t) via ESP32 GPIO 25 (Tri-State Switch):
+1) Applied Current Signal I(t) via ESP32 GPIO 25 -> Sharp Square-Wave Current Pulse:
 
 Current (mA)
   ^
   |          ┌──────────┐   <-- Phase 1 (1s): GPIO 25 = OUTPUT LOW (0V)
-  |          │          │       Controlled current I_pulse = V_bat / R_ref flows
+  |          │          │       Constant load current I_pulse = V_bat / R_ref flows
 0 └──────────┘          └─────────────────────────> Time (s)
   0         2 s        3 s                       8 s
   (Phase 0: High-Z)    (Phase 2: High-Z Relaxation)
 
 
-2) Measured Battery Terminal Voltage V(t) via ESP32 GPIO 34 (12-bit ADC):
+2) Battery Terminal Voltage Response V(t) via ESP32 GPIO 34 -> Rounded RC Curve:
 
 Voltage (V)
   ^
@@ -39,7 +42,7 @@ Voltage (V)
   |          │  <-- Instantaneous Ohmic Drop (R_s) -> Indicates Core Temperature
   |          │               _ -
   |          \             /
-  |           \__________/  <-- Exponential RC Decay & Recovery (R_ct, C_dl, tau)
+  |           \__________/  <-- Internal R_ct & C_dl round off the square edge!
   +-----------------------------------------------> Time (s)
   0         2 s        3 s                       8 s
 ```
@@ -58,6 +61,18 @@ Voltage (V)
 - **1x Breadboard & 3x Jumper Wires**
 - **1x Battery Under Test (DUT):** Open-circuit voltage **$V_{\text{OCV}} \le 3.3\text{ V}$** for direct connection
 
+### Which Commercial Batteries Work Directly? (Safety & $R_{\text{ref}}$ Selection)
+
+Because the minimalist 3-wire circuit connects directly to the ESP32's **$3.3\text{ V}$** pins (`GPIO 25` and `GPIO 34`), check this compatibility table before connecting a cell:
+
+| Battery Type | Voltage ($V_{\text{OCV}}$) | Safe Direct Connection? | Recommended $R_{\text{ref}}$ | Why It's Good / What to Expect |
+| :--- | :---: | :---: | :---: | :--- |
+| **CR2032 / CR2025 Coin Cell** | $3.0\text{ V} - 3.2\text{ V}$ | **YES (Best Choice)** | $220\,\Omega - 470\,\Omega$ | Has higher internal resistance ($10\,\Omega - 30\,\Omega$), producing a large, unmistakable voltage drop ($\Delta V \approx 50 - 200\text{ mV}$) and clean RC curve on the ESP32 ADC. *(Note: Heavily depleted cells with $R_{\text{int}} \gg R_{\text{ref}}$ may drop near the ADC floor; use $1\,\text{k}\Omega - 4.7\,\text{k}\Omega$ if needed).* |
+| **AA / AAA Alkaline** | $1.5\text{ V} - 1.6\text{ V}$ | **YES (Very Safe)** | $100\,\Omega - 150\,\Omega$ | Completely safe. Because AA cells have lower internal resistance ($0.2\,\Omega - 1.5\,\Omega$), use a smaller $R_{\text{ref}}$ ($100\,\Omega \implies \sim 15\text{ mA}$ pulse) so the voltage drop is large enough for the ADC to resolve. |
+| **AA / AAA NiMH Rechargeable** | $1.2\text{ V} - 1.4\text{ V}$ | **YES** | $100\,\Omega$ | Very safe, though fresh NiMH cells have very low internal resistance ($< 0.1\,\Omega$), making $\Delta V$ small without an oscilloscope. |
+| **18650 / Li-Po (Li-ion)** | $3.7\text{ V} - 4.2\text{ V}$ | **NO (Exceeds $3.3\text{ V}$)** | *Requires MOSFET + Divider* | **Do not connect directly.** Above $3.3\text{ V}$, the ADC saturates and current leaks into `GPIO 25`'s internal $3.3\text{ V}$ ESD protection diode even in `INPUT` (High-Z) mode. |
+| **9V Alkaline Block** | $9.0\text{ V}$ | **NO (Will damage ESP32)** | *Do not connect* | Exceeds ESP32 maximum pin ratings and will permanently damage the board if connected directly. |
+
 ### Breadboard Connection Table
 
 ```text
@@ -72,18 +87,24 @@ Voltage (V)
 | **3. Sense Line** | `Battery (+)` (Row 10) | Direct Wire | **`ESP32 GPIO 34`** (`ADC1_CH6`) | Measures terminal voltage directly on the battery side of $R_{\text{ref}}$ |
 | **4. Oscilloscope *(Optional)*** | Scope CH1 Probe | Direct | Tip $\to$ `Battery (+)`, Clip $\to$ `GND` | High-speed hybrid verification via `PyVISA` |
 
-> **⚠️ Voltage Safety Warning:** ESP32 pins are rated for a maximum of **$3.3\text{ V}$**. Only connect cells with **$V_{\text{OCV}} \le 3.3\text{ V}$** (such as $1.5\text{ V}$ AA/AAA alkaline, $1.2\text{ V}$ NiMH, $3.0\text{ V}$ CR2032 coin cells, or $3.2\text{ V}$ LiFePO4 cells) directly to `GPIO 25` and `GPIO 34`. Do **not** connect $>3.3\text{ V}$ batteries ($3.7\text{ V}-4.2\text{ V}$ Li-ion or $9\text{ V}$ blocks) directly without a protective voltage divider and switching transistor.
+> **⚠️ Voltage Safety Warning:** ESP32 pins are rated for a maximum of **$3.3\text{ V}$**. Only connect cells with **$V_{\text{OCV}} \le 3.3\text{ V}$** directly to `GPIO 25` and `GPIO 34`. Do **not** connect $>3.3\text{ V}$ batteries ($3.7\text{ V}-4.2\text{ V}$ Li-ion or $9\text{ V}$ blocks) directly without a protective voltage divider and switching transistor.
 
 ---
 
 ## 3. Download & Installation Instructions
 
-### Prerequisites
-- **Python 3.10+** installed and added to `PATH`
-- **Git** installed
+### Option A: One-Click Windows GUI Setup Wizard (`Easy_Setup_Wizard.bat`) — *Recommended*
+On any Windows 10/11 PC (including a freshly formatted machine):
 
-### Option A: One-Click Automated Setup (Windows PowerShell)
-Clone the repository and run the setup script, which creates the virtual environment, installs all Python scientific packages (`scipy`, `numpy`, `impedance`, `pybop`, `scikit-learn`, `pyserial`, `pyvisa`, `platformio`), and compiles the ESP32 firmware:
+1. Download or clone this repository (or download **`Easy_Setup_Wizard.bat`** directly).
+2. Double-click **`Easy_Setup_Wizard.bat`**.
+3. Choose your installation folder using **Browse...** and click **Next >**.
+4. The wizard automatically checks and installs all prerequisites (Python 3.12, Git, Silicon Labs CP210x USB-UART driver, `.venv` + all Python libraries, PlatformIO), compiles and verifies the ESP32 firmware, verifies the offline EIS/DRT pipeline, optionally flashes connected ESP32 boards, and creates quick-launch shortcuts in `Desktop\apps\Battery-EIS\`.
+
+> For detailed manual commands and troubleshooting, see **[project_installation_guide.md](project_installation_guide.md)**.
+
+### Option B: PowerShell Automated Setup (Existing Python 3.10+ & Git)
+If Python 3.10+ and Git are already installed:
 
 ```powershell
 git clone https://github.com/burakmentesoglu/ESP32-Battery-EIS-Parameterization.git
@@ -91,7 +112,7 @@ cd ESP32-Battery-EIS-Parameterization
 .\setup_env.ps1
 ```
 
-### Option B: Manual Step-by-Step Installation (Windows / Linux / macOS)
+### Option C: Manual Step-by-Step Installation (Windows / Linux / macOS)
 
 ```bash
 # 1. Clone the repository
@@ -237,9 +258,11 @@ By applying a Fast Fourier Transform (`numpy.fft.rfft`) to the step-current exci
 
 ```text
 ESP32-Battery-EIS-Parameterization/
+├── Easy_Setup_Wizard.bat        # One-click Windows GUI setup, driver, build & flash wizard
+├── project_installation_guide.md # Complete technical installation & troubleshooting guide
 ├── config.json                  # Hardware pins (GPIO 25/34), R_ref, pulse timings, Serial/VISA settings
 ├── requirements.txt             # Python package dependencies (scipy, impedance, pybop, scikit-learn, etc.)
-├── setup_env.ps1                # One-click virtual environment & firmware build script
+├── setup_env.ps1                # PowerShell virtual environment & firmware build script
 ├── flash_esp32.ps1              # One-click ESP32 firmware upload script
 ├── run_pulse.ps1                # One-click pulse trigger & parameter extraction script
 ├── README.md                    # Complete documentation, installation & parameter reference guide
