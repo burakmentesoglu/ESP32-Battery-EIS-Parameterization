@@ -180,7 +180,7 @@ $script:Steps = @(
             $venvPio = Get-VenvPioExe
             if (-not ((Test-Path $venvPy) -and (Test-Path $venvPio))) { return $false }
             try {
-                $chk = & $venvPy -c "import importlib.metadata as m; [m.version(p) for p in ['pyvisa','pyvisa-py','pyserial','scipy','numpy','matplotlib','pandas','scikit-learn','impedance','pybop','platformio']]; print('VENV_PKGS_OK')" 2>&1 | Out-String
+                $chk = & $venvPy -c "import importlib.metadata as m; [m.version(p) for p in ['pyvisa','pyvisa-py','pyserial','scipy','numpy','matplotlib','pandas','scikit-learn','joblib','impedance','platformio']]; print('VENV_PKGS_OK')" 2>&1 | Out-String
                 if ($chk -match "VENV_PKGS_OK") { return $true }
             } catch {}
             return $false
@@ -1032,7 +1032,7 @@ function Execute-Step {
             $ecPip = Invoke-AsyncCommand -FileName $venvPy -Arguments "-m pip install -r requirements.txt" -WorkingDirectory $script:TargetRepoDir -StepIndex 5
             if ($ecPip -ne 0) { return $false }
 
-            $chk = & $venvPy -c "import pyvisa, serial, scipy, numpy, matplotlib, pandas, sklearn, impedance, pybop; assert hasattr(serial, 'Serial'); print('ALL_IMPORTS_OK')" 2>&1 | Out-String
+            $chk = & $venvPy -c "import pyvisa, serial, scipy, numpy, matplotlib, pandas, sklearn, joblib, impedance; assert hasattr(serial, 'Serial'); print('ALL_IMPORTS_OK')" 2>&1 | Out-String
             if ($chk -match "ALL_IMPORTS_OK") {
                 Append-ConsoleLine "All Python scientific, EIS, ML, and serial libraries verified."
                 return $true
@@ -1250,7 +1250,7 @@ function Start-InstallationLoop {
     $binSize = if (Test-Path $binApp) { "$([math]::Round((Get-Item $binApp).Length / 1024, 1)) KB (Verified)" } else { "Verified" }
     $lines = @(
         "Project Folder  : $($script:TargetRepoDir)",
-        "Python Env      : .venv (PlatformIO + SciPy + impedance.py + PyBOP)",
+        "Python Env      : .venv (PlatformIO + SciPy + impedance.py + scikit-learn)",
         "Firmware Binary : firmware\.pio\build\esp32dev\firmware.bin ($binSize)",
         "Shortcuts Dir   : $ShortcutsDir",
         "Total Duration  : $totalTime",

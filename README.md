@@ -261,7 +261,7 @@ ESP32-Battery-EIS-Parameterization/
 ├── Easy_Setup_Wizard.bat        # One-click Windows GUI setup, driver, build & flash wizard
 ├── project_installation_guide.md # Complete technical installation & troubleshooting guide
 ├── config.json                  # Hardware pins (GPIO 25/34), R_ref, pulse timings, Serial/VISA settings
-├── requirements.txt             # Python package dependencies (scipy, impedance, pybop, scikit-learn, etc.)
+├── requirements.txt             # Python package dependencies (scipy, impedance, scikit-learn, pyserial, platformio)
 ├── setup_env.ps1                # PowerShell virtual environment & firmware build script
 ├── flash_esp32.ps1              # One-click ESP32 firmware upload script
 ├── run_pulse.ps1                # One-click pulse trigger & parameter extraction script

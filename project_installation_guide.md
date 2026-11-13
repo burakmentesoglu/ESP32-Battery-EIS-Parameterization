@@ -27,8 +27,7 @@ All Python packages are installed cleanly inside a project-local `.venv` via `re
 * **`pyvisa` & `pyvisa-py`**: Optional hybrid oscilloscope control over USB/LAN.
 * **`scipy` & `numpy`**: Nonlinear least-squares curve fitting (`curve_fit`), FFT complex impedance computation (`numpy.fft.rfft`), numerical integration, and Tikhonov DRT inversion.
 * **`impedance`**: Frequency-domain Randles equivalent circuit fitting (`R0-p(R1,C1)`).
-* **`pybop`**: Time-domain battery parameterization & optimization ecosystem.
-* **`scikit-learn`, `pandas`, `matplotlib`**: Data processing, 4-panel diagnostic plotting (Transient, Nyquist, Bode, DRT), and ML temperature/SoH regression.
+* **`scikit-learn`, `joblib`, `pandas`, `matplotlib`**: Data processing, 4-panel diagnostic plotting (Transient, Nyquist, Bode, DRT), and ML temperature/SoH regression.
 
 ### 1.4. Hardware & Driver Requirements
 * **1× ESP32 Development Board** (`ESP32 Dev Module`, e.g., ESP32-WROOM-32).
@@ -117,7 +116,7 @@ python -m venv .venv
 
 Verify all packages import cleanly:
 ```powershell
-.\.venv\Scripts\python.exe -c "import pyvisa, serial, scipy, numpy, matplotlib, pandas, sklearn, impedance, pybop; assert hasattr(serial, 'Serial'); print('ALL_IMPORTS_OK')"
+.\.venv\Scripts\python.exe -c "import pyvisa, serial, scipy, numpy, matplotlib, pandas, sklearn, joblib, impedance; assert hasattr(serial, 'Serial'); print('ALL_IMPORTS_OK')"
 ```
 
 ### Step 4: Compile & Flash the ESP32 Firmware
