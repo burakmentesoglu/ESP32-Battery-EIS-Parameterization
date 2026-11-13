@@ -150,6 +150,17 @@ Connect your ESP32 board via USB and run:
 *(Alternatively, open [`firmware/esp32_battery_pulse/esp32_battery_pulse.ino`](firmware/esp32_battery_pulse/esp32_battery_pulse.ino) in the **Arduino IDE**, select **ESP32 Dev Module**, and click **Upload**).*
 
 ### Step 2: Run a Live Battery Pulse Measurement
+
+#### Option A: Desktop Studio GUI (Recommended)
+Launch the interactive desktop application to scan COM ports, check live Open-Circuit Voltage (`OCV`), enter your reference resistor $R_{\text{ref}}$ ($\Omega$), trigger the pulse, and **automatically view extracted parameters and diagnostic plots** as soon as the measurement finishes:
+
+```powershell
+.\launch_gui.ps1
+# Or directly:
+.\.venv\Scripts\python.exe -m src.gui_app
+```
+
+#### Option B: Command-Line Interface (CLI)
 Trigger the 8-second protocol ($2\text{ s}$ High-Z OCV $\to$ $1\text{ s}$ Pulse LOW $\to$ $5\text{ s}$ High-Z Relaxation) by specifying the reference resistor value $R_{\text{ref}}$ in Ohms:
 
 ```powershell
@@ -263,6 +274,7 @@ ESP32-Battery-EIS-Parameterization/
 ├── config.json                  # Hardware pins (GPIO 25/34), R_ref, pulse timings, Serial/VISA settings
 ├── requirements.txt             # Python package dependencies (scipy, impedance, scikit-learn, pyserial, platformio)
 ├── setup_env.ps1                # PowerShell virtual environment & firmware build script
+├── launch_gui.ps1               # One-click Desktop Studio GUI launcher (Pulse trigger + Results viewer)
 ├── flash_esp32.ps1              # One-click ESP32 firmware upload script
 ├── run_pulse.ps1                # One-click pulse trigger & parameter extraction script
 ├── README.md                    # Complete documentation, installation & parameter reference guide
@@ -274,6 +286,7 @@ ESP32-Battery-EIS-Parameterization/
 │       └── esp32_battery_pulse.ino # Arduino IDE compatible wrapper sketch
 └── src/
     ├── __init__.py
+    ├── gui_app.py               # Tkinter Desktop GUI (R_ref input, live OCV check, pulse trigger, results viewer)
     ├── acquire_pulse.py         # PySerial & PyVISA automated pulse controller & waveform downloader
     ├── extract_parameters.py    # 1-RC, 2-RC, FFT EIS, DRT & Energetics extraction + 4-panel plotting
     ├── calibrate_model.py       # Polynomial (ESP32 NVS) & Scikit-Learn temperature/SoH calibration

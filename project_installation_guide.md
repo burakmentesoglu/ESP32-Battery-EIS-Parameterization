@@ -151,7 +151,12 @@ Verify all packages import cleanly:
 
 ### 4.2. Run a Live Pulse Measurement
 ```powershell
+# Recommended: Launch the Desktop GUI (enter R_ref, click Send Pulse, auto-view Results)
+.\launch_gui.ps1
+
+# Or via CLI with a 470 Ohm reference resistor (COM port auto-detected):
 .\run_pulse.ps1 -RRef 470
+
 # Optionally record ground-truth temperature (e.g. 25.0 °C):
 .\run_pulse.ps1 -RRef 470 -TempC 25.0
 ```
@@ -170,7 +175,8 @@ When you run `Easy_Setup_Wizard.bat`, five ready-to-use batch launchers are crea
 
 | Script Name | Description |
 | :--- | :--- |
-| **`1_Run_Battery_Pulse.bat`** | Prompts for $R_{\text{ref}}$ ($\Omega$) and optional temperature ($^\circ\text{C}$), triggers the ESP32 pulse, and saves all 5 output files. |
+| **`0_Battery_Pulse_GUI.bat`** | Opens the Desktop Studio GUI to check live OCV, enter $R_{\text{ref}}$, send the pulse, and view results & plots automatically. |
+| **`1_Run_Battery_Pulse.bat`** | Prompts for $R_{\text{ref}}$ ($\Omega$) and optional temperature ($^\circ\text{C}$), triggers the ESP32 pulse via CLI, and saves all 5 output files. |
 | **`2_Flash_ESP32_Firmware.bat`** | Uploads the compiled firmware to the connected ESP32 via PlatformIO. |
 | **`3_Offline_Simulation_Test.bat`** | Runs `src.simulate_and_verify` and opens the generated calibration plot. |
 | **`4_Analyze_Existing_CSV.bat`** | Lets you drag-and-drop any recorded `.csv` file to re-run Randles/2-RC/EIS/DRT extraction. |

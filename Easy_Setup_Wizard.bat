@@ -613,12 +613,21 @@ $txtSummaryReport.Font = New-Object System.Drawing.Font("Consolas", 9)
 $txtSummaryReport.BorderStyle = "FixedSingle"
 $cardDone.Controls.Add($txtSummaryReport)
 
+$chkLaunchGui = New-Object System.Windows.Forms.CheckBox
+$chkLaunchGui.Text = "Launch ESP32 Battery Pulse & Results GUI when I click Finish"
+$chkLaunchGui.Checked = $true
+$chkLaunchGui.Location = New-Object System.Drawing.Point(26, 374)
+$chkLaunchGui.AutoSize = $true
+$chkLaunchGui.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$chkLaunchGui.ForeColor = $CLR_GREEN
+$pageFinish.Controls.Add($chkLaunchGui)
+
 $chkOpenShortcuts = New-Object System.Windows.Forms.CheckBox
-$chkOpenShortcuts.Text = "Open Quick-Launch Shortcuts folder (Desktop\apps\Battery-EIS) when I click Finish"
-$chkOpenShortcuts.Checked = $true
-$chkOpenShortcuts.Location = New-Object System.Drawing.Point(26, 382)
+$chkOpenShortcuts.Text = "Open Quick-Launch Shortcuts folder (Desktop\apps\Battery-EIS)"
+$chkOpenShortcuts.Checked = $false
+$chkOpenShortcuts.Location = New-Object System.Drawing.Point(26, 404)
 $chkOpenShortcuts.AutoSize = $true
-$chkOpenShortcuts.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$chkOpenShortcuts.Font = New-Object System.Drawing.Font("Segoe UI", 9.5)
 $chkOpenShortcuts.ForeColor = $CLR_TEXT
 $pageFinish.Controls.Add($chkOpenShortcuts)
 
@@ -1126,6 +1135,14 @@ function Execute-Step {
             try {
                 New-Item -ItemType Directory -Force -Path $ShortcutsDir -ErrorAction SilentlyContinue | Out-Null
 
+                Set-Content -Path (Join-Path $ShortcutsDir "0_Battery_Pulse_GUI.bat") -Encoding ASCII -ErrorAction SilentlyContinue -Value @"
+@echo off
+title ESP32 Battery Pulse and EIS Studio GUI
+cd /d "$repo"
+".venv\Scripts\python.exe" -m src.gui_app
+if %ERRORLEVEL% NEQ 0 pause
+"@
+
                 Set-Content -Path (Join-Path $ShortcutsDir "1_Run_Battery_Pulse.bat") -Encoding ASCII -ErrorAction SilentlyContinue -Value @"
 @echo off
 title ESP32 Battery Pulse - EIS Measurement
@@ -1312,6 +1329,12 @@ $btnNext.Add_Click({
     } elseif ($script:WizardStage -eq "FinishScreen") {
         if ($chkOpenShortcuts.Checked -and (Test-Path $ShortcutsDir)) {
             Start-Process explorer.exe -ArgumentList "`"$ShortcutsDir`""
+        }
+        if ($chkLaunchGui.Checked) {
+            $venvPy = Join-Path $script:TargetRepoDir ".venv\Scripts\python.exe"
+            if (Test-Path $venvPy) {
+                Start-Process -FilePath $venvPy -ArgumentList "-m src.gui_app" -WorkingDirectory $script:TargetRepoDir
+            }
         }
         $form.Close()
     }
