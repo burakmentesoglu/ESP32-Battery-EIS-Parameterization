@@ -150,8 +150,11 @@ Verify all packages import cleanly:
 > **Safety Reminder:** Never connect batteries with $V_{\text{OCV}} > 3.3\text{ V}$ (such as $3.7\text{ V} - 4.2\text{ V}$ Li-ion or $9\text{ V}$ blocks) directly to ESP32 pins.
 
 ### 4.2. Run a Live Pulse Measurement
+Double-click **`Run_Battery_GUI.bat`** in the project root (or launch via PowerShell):
+
 ```powershell
-# Recommended: Launch the Desktop GUI (enter R_ref, click Send Pulse, auto-view Results)
+# Recommended: Double-click Run_Battery_GUI.bat (or launch via PowerShell):
+.\Run_Battery_GUI.bat
 .\launch_gui.ps1
 
 # Or via CLI with a 470 Ohm reference resistor (COM port auto-detected):

@@ -157,12 +157,14 @@ Connect your ESP32 board via USB and run:
 
 ### Step 2: Run a Live Battery Pulse Measurement
 
-#### Option A: Desktop Studio GUI (Recommended)
-Launch the interactive desktop application to scan COM ports, check live Open-Circuit Voltage (`OCV`), enter your reference resistor $R_{\text{ref}}$ ($\Omega$), trigger the pulse, and **automatically view extracted parameters and diagnostic plots** as soon as the measurement finishes:
+#### Option A: Desktop Studio GUI (Recommended — Double-Click to Launch)
+Double-click **`Run_Battery_GUI.bat`** (or `Desktop\apps\Battery-EIS\0_Battery_Pulse_GUI.bat`) to launch the interactive desktop application without a console window—scan COM ports, check live Open-Circuit Voltage (`OCV`), enter your reference resistor $R_{\text{ref}}$ ($\Omega$), trigger the pulse, and **automatically view extracted parameters and diagnostic plots** as soon as the measurement finishes:
 
 ```powershell
+# Double-click Run_Battery_GUI.bat in File Explorer, or run:
+.\Run_Battery_GUI.bat
+# Or via PowerShell / Python:
 .\launch_gui.ps1
-# Or directly:
 .\.venv\Scripts\python.exe -m src.gui_app
 ```
 
@@ -276,11 +278,12 @@ By applying a Fast Fourier Transform (`numpy.fft.rfft`) to the step-current exci
 ```text
 ESP32-Battery-EIS-Parameterization/
 ├── Easy_Setup_Wizard.bat        # One-click Windows GUI setup, driver, build & flash wizard
+├── Run_Battery_GUI.bat          # Double-click Windows launcher for the Desktop Studio GUI (no console)
 ├── project_installation_guide.md # Complete technical installation & troubleshooting guide
 ├── config.json                  # Hardware pins (GPIO 25/34), R_ref, pulse timings, Serial/VISA settings
 ├── requirements.txt             # Python package dependencies (scipy, impedance, scikit-learn, pyserial, platformio)
 ├── setup_env.ps1                # PowerShell virtual environment & firmware build script
-├── launch_gui.ps1               # One-click Desktop Studio GUI launcher (Pulse trigger + Results viewer)
+├── launch_gui.ps1               # PowerShell Desktop Studio GUI launcher (Pulse trigger + Results viewer)
 ├── flash_esp32.ps1              # One-click ESP32 firmware upload script
 ├── run_pulse.ps1                # One-click pulse trigger & parameter extraction script
 ├── README.md                    # Complete documentation, installation & parameter reference guide
