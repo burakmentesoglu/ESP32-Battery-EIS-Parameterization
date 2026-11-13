@@ -73,12 +73,18 @@ Because the minimalist 3-wire circuit connects directly to the ESP32's **$3.3\te
 | **18650 / Li-Po (Li-ion)** | $3.7\text{ V} - 4.2\text{ V}$ | **NO (Exceeds $3.3\text{ V}$)** | *Requires MOSFET + Divider* | **Do not connect directly.** Above $3.3\text{ V}$, the ADC saturates and current leaks into `GPIO 25`'s internal $3.3\text{ V}$ ESD protection diode even in `INPUT` (High-Z) mode. |
 | **9V Alkaline Block** | $9.0\text{ V}$ | **NO (Will damage ESP32)** | *Do not connect* | Exceeds ESP32 maximum pin ratings and will permanently damage the board if connected directly. |
 
-### Breadboard Connection Table
+### Wire the Breadboard (3 Wires + 1 Resistor)
+
+1. **`Battery (-)` $\to$ `ESP32 GND`**
+2. **`ESP32 GPIO 25` $\to$ $R_{\text{ref}}$ $\to$ `Battery (+)`**
+3. **`Battery (+)` $\to$ `ESP32 GPIO 34`**
 
 ```text
 [ESP32 GPIO 25] ──> (Row 1) ── [ R_ref ] ── (Row 10) <── Connect BOTH [ESP32 GPIO 34] and [Battery (+)] here!
                                                          Connect [Battery (-)] directly to [ESP32 GND]
 ```
+
+#### Detailed Connection Table
 
 | Line | From | Through | To | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
