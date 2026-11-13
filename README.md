@@ -199,6 +199,18 @@ To test the entire pipeline without hardware connected (simulating a $20\,^\circ
 .\.venv\Scripts\python.exe -m src.simulate_and_verify
 ```
 
+### How to Choose Square-Wave Pulse Parameters ($R_{\text{ref}}$, Timings & Sample Rate)
+
+When triggering a square-wave current pulse from the GUI (`Run_Battery_GUI.bat`) or CLI (`src.acquire_pulse`), choose the input settings using these engineering rules:
+
+| Input Parameter | Default | How to Choose It & Physical Trade-Off |
+| :--- | :---: | :--- |
+| **`R_ref` ($\Omega$)** | `470 Ω` | Sets pulse current $I_{\text{pulse}} \approx V_{\text{OCV}} / (R_{\text{ref}} + R_{\text{int}})$ and voltage drop $\Delta V \approx I_{\text{pulse}} R_{\text{int}}$. Target **$I_{\text{pulse}} \approx 5 - 25\text{ mA}$** (never $>40\text{ mA}$ on ESP32 `GPIO 25`) and **$\Delta V \ge 30\text{ mV}$** so the 12-bit ADC resolves the curve cleanly. Use `220–470 Ω` for `CR2032` coin cells (`1 kΩ+` for heavily aged cells) and `100–150 Ω` for `AA/AAA` cells. |
+| **High-Z OCV Hold (Phase 0)** | `2.0 s` | Measures equilibrium $V_{\text{OCV}}$ with zero current before loading. `1–2 s` works for rested cells; use `3–5 s` if the cell was just discharged so $V_{\text{OCV}}$ stabilizes. |
+| **Pulse Width (Phase 1)** | `1.0 s` | Must span at least **$3\tau - 5\tau$** of the cell's main $RC$ time constant so $R_{\text{ct}}$ and $C_{\text{dl}}$ fit accurately: use `0.5 s` for a quick $R_s$ check, `1.0 s` for standard 1-RC + EIS ($0.5 - 200\text{ Hz}$), or `2.0–3.0 s` to resolve slow Warburg diffusion ($\sqrt{t}$ tail). |
+| **Relaxation Hold (Phase 2)** | `5.0 s` | Captures voltage recovery after current cut-off for 2-RC and DRT fitting. Choose **$\ge 3\tau_{\text{slow}}$** (`5.0 s` fits most coin & AA cells; use `8–10 s` for very large-capacitance cells). |
+| **Sample Rate (`Hz`)** | `1000 Hz` | Controls baseline sampling and Nyquist EIS ceiling ($f_{\text{max}} \le f_s / 2$). The first $5\text{ ms}$ of every pulse automatically captures a **$40\text{ kHz}$ burst ($200$ samples)** in ESP32 RAM for $R_s$. **RAM Budget Rule:** total buffered points $(T_{\text{ocv}} + T_{\text{pulse}} + T_{\text{relax}}) \times f_s + 200$ must be **$\le 10{,}000$** (max `9.8 s` at `1000 Hz`, or drop to `500 Hz` for captures up to `19.6 s`). |
+
 ---
 
 ## 5. Generated Output Files

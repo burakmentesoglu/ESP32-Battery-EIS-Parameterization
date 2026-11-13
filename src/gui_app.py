@@ -200,8 +200,11 @@ class BatteryPulseGUI:
         self.var_progress = tk.DoubleVar(value=0.0)
         self.var_run_select = tk.StringVar(value="")
         self.var_run_meta = tk.StringVar(value="No run selected yet.")
+        self.var_budget_hint = tk.StringVar(value="ESP32 RAM Buffer: ~8,200 / 10,000 samples (OK)")
 
         self.var_r_ref.trace_add("write", lambda *_: self._update_r_ref_hint())
+        for v in (self.var_ocv_s, self.var_pulse_s, self.var_relax_s, self.var_rate_hz):
+            v.trace_add("write", lambda *_: self._update_budget_hint())
 
     def _update_r_ref_hint(self) -> None:
         try:
@@ -218,6 +221,22 @@ class BatteryPulseGUI:
                 self.var_r_ref_hint.set(f"Gentle pulse (~{3.1 / r * 1000:.1f} mA @ 3.1V); good for high-R cells.")
         except ValueError:
             self.var_r_ref_hint.set("Enter a numeric resistance in Ohms (e.g., 470).")
+
+    def _update_budget_hint(self) -> None:
+        try:
+            total_s = float(self.var_ocv_s.get()) + float(self.var_pulse_s.get()) + float(self.var_relax_s.get())
+            rate = int(float(self.var_rate_hz.get()))
+            est = int(round(total_s * rate)) + 200  # +200 for 5 ms 40 kHz edge burst
+            if total_s <= 0 or rate <= 0:
+                self.var_budget_hint.set("Durations and Sample Rate must be > 0.")
+            elif est > 10000:
+                self.var_budget_hint.set(
+                    f"Warning: ~{est:,} samples exceeds ESP32 10,000 RAM limit! Lower Sample Rate (e.g. 500 Hz) or duration."
+                )
+            else:
+                self.var_budget_hint.set(f"ESP32 RAM Buffer: ~{est:,} / 10,000 samples ({total_s:.1f}s total - OK)")
+        except ValueError:
+            self.var_budget_hint.set("Enter numeric durations (s) and sample rate (Hz).")
 
     # ------------------------------------------------------------------
     # UI Construction
@@ -252,11 +271,14 @@ class BatteryPulseGUI:
 
         self.tab_control = tk.Frame(self.notebook, bg=BG_APP)
         self.tab_results = tk.Frame(self.notebook, bg=BG_APP)
+        self.tab_guide = tk.Frame(self.notebook, bg=BG_APP)
         self.notebook.add(self.tab_control, text="  1. Control & Measure  ")
         self.notebook.add(self.tab_results, text="  2. Results & Plots  ")
+        self.notebook.add(self.tab_guide, text="  3. Guide & Parameter Help  ")
 
         self._build_control_tab()
         self._build_results_tab()
+        self._build_guide_tab()
 
     def _make_card(self, parent: tk.Widget, title: str) -> tk.Frame:
         outer = tk.Frame(parent, bg=BORDER_SUBTLE, padx=1, pady=1)
@@ -391,7 +413,8 @@ class BatteryPulseGUI:
             c_proto,
             text="Timing Diagram: [Phase 0: High-Z OCV] -> [Phase 1: LOW Pulse via R_ref] -> [Phase 2: High-Z Relaxation]",
             style="Muted.TLabel",
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="w", pady=(6, 2))
+        ttk.Label(c_proto, textvariable=self.var_budget_hint, style="Muted.TLabel").pack(anchor="w")
 
         # --- Right Column Top: Execution & Progress ---
         c_run_out, c_run = self._make_card(right_col, "Execute Pulse & Parameter Extraction")
@@ -517,6 +540,125 @@ class BatteryPulseGUI:
         self.lbl_plot.pack(fill="both", expand=True)
         self.lbl_plot.bind("<Button-1>", lambda _e: self.on_open_plot())
         self.lbl_plot.bind("<Configure>", lambda _e: self._render_plot_preview())
+
+    def _apply_protocol_preset(self, r_ref: str, ocv_s: str, pulse_s: str, relax_s: str, rate_hz: str, label: str) -> None:
+        self.var_r_ref.set(r_ref)
+        self.var_ocv_s.set(ocv_s)
+        self.var_pulse_s.set(pulse_s)
+        self.var_relax_s.set(relax_s)
+        self.var_rate_hz.set(rate_hz)
+        self.log(f"Applied preset '{label}': R_ref={r_ref} Ohm, OCV={ocv_s}s, Pulse={pulse_s}s, Relax={relax_s}s @ {rate_hz} Hz")
+        self.notebook.select(self.tab_control)
+
+    def _build_guide_tab(self) -> None:
+        container = tk.Frame(self.tab_guide, bg=BG_APP, pady=10)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1, uniform="gcol")
+        container.columnconfigure(1, weight=1, uniform="gcol")
+        container.rowconfigure(0, weight=1)
+
+        # Left Panel: Input Parameter Selection Rules + Presets
+        left_out, left_card = self._make_card(container, "How to Choose Square-Wave Pulse Input Parameters")
+        left_out.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+
+        row_presets = tk.Frame(left_card, bg=BG_CARD)
+        row_presets.pack(fill="x", pady=(0, 8))
+        ttk.Label(row_presets, text="One-Click Presets:", style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
+        btn_bar = tk.Frame(row_presets, bg=BG_CARD)
+        btn_bar.pack(fill="x")
+        presets = [
+            ("CR2032 Coin (470Ω, 2/1/5s @1kHz)", "470", "2.0", "1.0", "5.0", "1000"),
+            ("AA / AAA (100Ω, 2/1/5s @1kHz)", "100", "2.0", "1.0", "5.0", "1000"),
+            ("Fast Check (470Ω, 1/0.5/2.5s)", "470", "1.0", "0.5", "2.5", "1000"),
+            ("Deep Diffusion (470Ω, 2/3/10s @500Hz)", "470", "2.0", "3.0", "10.0", "500"),
+        ]
+        for lbl, rr, ocv, pls, rlx, rt in presets:
+            self._make_btn(
+                btn_bar,
+                lbl,
+                lambda a=rr, b=ocv, c=pls, d=rlx, e=rt, n=lbl: self._apply_protocol_preset(a, b, c, d, e, n),
+                bg=BG_INPUT,
+                fg=ACCENT_BLUE,
+                font=("Segoe UI", 8, "bold"),
+                padx=8,
+                pady=4,
+            ).pack(side="left", padx=(0, 5), pady=2)
+
+        txt_in = scrolledtext.ScrolledText(
+            left_card, bg=BG_INPUT, fg="#E2E8F0", relief="flat", font=("Consolas", 9), wrap="word"
+        )
+        txt_in.pack(fill="both", expand=True)
+        txt_in.insert(
+            "end",
+            (
+                "WHY A SQUARE-WAVE CURRENT PULSE?\n"
+                "ESP32 GPIO 25 switches between High-Z (INPUT) and 0 V (OUTPUT LOW) through R_ref.\n"
+                "This draws a crisp square current step I(t) = V(t)/R_ref without injecting external\n"
+                "voltage into the cell. By Fourier theory, the sharp edge excites many frequencies\n"
+                "at once—giving time-domain RC fits AND frequency-domain EIS from one capture.\n\n"
+                "1) Reference Resistor R_ref (Ohms):\n"
+                "   Controls pulse current amplitude: I_pulse ~= V_OCV / (R_ref + R_int).\n"
+                "   - Too HIGH R_ref -> small voltage drop dV (< 20 mV), harder for 12-bit ADC.\n"
+                "   - Too LOW R_ref  -> exceeds ESP32 GPIO 25 max (~40 mA) or collapses voltage.\n"
+                "   - Target rule: keep I_pulse around 5 - 25 mA and dV >= 30 mV:\n"
+                "       * CR2032 / CR2025 Coin Cell (3.0V): 220 - 470 Ohm (use 1k+ if weak/aged)\n"
+                "       * AA / AAA Alkaline or NiMH (1.5V): 100 - 150 Ohm\n\n"
+                "2) High-Z OCV Hold (Phase 0, default 2.0 s):\n"
+                "   Records equilibrium Open-Circuit Voltage with zero load current.\n"
+                "   - 1.0 - 2.0 s is enough for a rested cell; use 3 - 5 s if recently pulsed.\n\n"
+                "3) Pulse Width (Phase 1, default 1.0 s):\n"
+                "   Must exceed 3*tau to 5*tau of the RC curve so R_ct and C_dl converge cleanly:\n"
+                "   - 0.5 s : Fast Rs & high-freq EIS check (minimal energy drained).\n"
+                "   - 1.0 s : Standard coin/AA test (captures Rs, Rct, Cdl + 0.5-200 Hz EIS).\n"
+                "   - 2-3 s : Deep Warburg diffusion tail for slow porous electrodes.\n\n"
+                "4) Relaxation Recovery (Phase 2, default 5.0 s):\n"
+                "   Records open-circuit voltage rebound after load turn-off for 2-RC & DRT.\n"
+                "   - Choose >= 3 * tau_slow (default 5.0 s works well for most cells).\n\n"
+                "5) Sample Rate (Hz, default 1000 Hz) & ESP32 RAM Limit:\n"
+                "   First 5 ms of Pulse & Relax edges automatically capture a 40 kHz burst (200 pts)\n"
+                "   in RAM to resolve instantaneous Ohmic drop Rs cleanly.\n"
+                "   Total samples = (OCV + Pulse + Relax) * Rate + 200 must stay <= 10,000 RAM limit\n"
+                "   (e.g., max 9.8 s total @ 1000 Hz, or up to 19.6 s total @ 500 Hz).\n"
+            ),
+        )
+        txt_in.configure(state="disabled")
+
+        # Right Panel: What Each Result Parameter Measures
+        right_out, right_card = self._make_card(container, "What Each Extracted Result Parameter Measures")
+        right_out.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+
+        txt_out = scrolledtext.ScrolledText(
+            right_card, bg=BG_INPUT, fg="#E2E8F0", relief="flat", font=("Consolas", 9), wrap="word"
+        )
+        txt_out.pack(fill="both", expand=True)
+        txt_out.insert(
+            "end",
+            (
+                "OPEN-CIRCUIT & ENERGETICS:\n"
+                "- V_OCV (V)          : Resting equilibrium voltage -> State of Charge (SoC).\n"
+                "- V_min / dV (mV)    : Voltage sag under pulse -> checks cutoff/overpotential.\n"
+                "- I_pulse (mA)       : Mean discharge current = mean(V_pulse / R_ref).\n"
+                "- Q (mC), E (mJ)     : Charge and energy delivered during the pulse window.\n"
+                "- P_max (mW)         : Peak matched-load power = V_OCV^2 / (4 * R_s).\n\n"
+                "1-RC RANDLES EQUIVALENT CIRCUIT:\n"
+                "- R_s (Ohm)          : Instantaneous vertical drop at t=0+ -> Electrolyte ionic\n"
+                "                       resistance & contacts. Strongly tracks CORE TEMPERATURE.\n"
+                "- R_ct (Ohm)         : Exponential polarization arc -> Kinetic charge-transfer\n"
+                "                       barrier at electrode interface. Tracks AGING / SoH.\n"
+                "- C_dl (F / mF)      : Electrical double-layer capacitance -> Accessible porous\n"
+                "                       electrode surface area & pore wetting.\n"
+                "- tau = R_ct * C_dl  : Characteristic interfacial relaxation speed (63.2%).\n"
+                "- Warburg Slope (k_w): sqrt(t) tail -> Solid/pore-level ion diffusion limit.\n\n"
+                "2-RC & FREQUENCY-DOMAIN EIS / DRT:\n"
+                "- tau1_fast (1-50ms) : Fast surface-film / SEI & contact redistribution.\n"
+                "- tau2_slow (0.1-5s) : Slower Faradaic reaction & concentration relaxation.\n"
+                "- EIS R0 / R1 / C1   : Complex Nyquist fit Z(f) = -FFT(dV) / FFT(I).\n"
+                "- Min Phase & f_peak : Peak capacitive phase angle & characteristic frequency.\n"
+                "- DRT Peaks (tau)    : Regularized Distribution of Relaxation Times peaks\n"
+                "                       revealing hidden internal layers without circuit bias.\n"
+            ),
+        )
+        txt_out.configure(state="disabled")
 
     # ------------------------------------------------------------------
     # Logging & Thread-Safe UI Queue
